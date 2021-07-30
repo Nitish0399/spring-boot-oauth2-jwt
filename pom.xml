@@ -85,7 +85,12 @@
 			<artifactId>jackson-databind</artifactId>
 			<version>2.11.1</version>
 		</dependency>
-    </dependencies>
+		<dependency>
+			<groupId>commons-io</groupId>
+			<artifactId>commons-io</artifactId>
+			<version>2.6</version>
+		</dependency>
+	</dependencies>
 
 	<build>
 		<plugins>

@@ -3,6 +3,7 @@ package com.example.oauth2.configuration;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -17,9 +18,14 @@ import org.springframework.security.oauth2.config.annotation.web.configurers.Aut
 import org.springframework.security.oauth2.provider.token.TokenStore;
 import org.springframework.security.oauth2.provider.token.store.JwtAccessTokenConverter;
 import org.springframework.security.oauth2.provider.token.store.JwtTokenStore;
+import org.springframework.security.oauth2.provider.token.store.KeyStoreKeyFactory;
+
+import javax.sql.DataSource;
+import java.security.KeyPair;
 
 @Configuration
 @EnableAuthorizationServer
+@EnableConfigurationProperties(SecurityProperties.class)
 public class OAuthConfiguration extends AuthorizationServerConfigurerAdapter {
 
 	@Value("${app.clientId}")
@@ -40,6 +46,14 @@ public class OAuthConfiguration extends AuthorizationServerConfigurerAdapter {
 
 	BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
+	private final SecurityProperties securityProperties;
+	private JwtAccessTokenConverter jwtAccessTokenConverter;
+	private TokenStore tokenStore;
+
+	public OAuthConfiguration(final SecurityProperties securityProperties) {
+		this.securityProperties = securityProperties;
+	}
+
 	@Override
 	public void configure(final AuthorizationServerSecurityConfigurer oauthServer) throws Exception {
 		oauthServer.tokenKeyAccess("permitAll()").checkTokenAccess("isAuthenticated()");
@@ -58,19 +72,54 @@ public class OAuthConfiguration extends AuthorizationServerConfigurerAdapter {
 
     @Override
     public void configure(final AuthorizationServerEndpointsConfigurer endpoints) throws Exception {
-    	endpoints.tokenStore(tokenStore()).authenticationManager(authenticationManager).accessTokenConverter(defaultAccessTokenConverter())
-    	.userDetailsService(userDetailsService);
+//    	endpoints.tokenStore(tokenStore()).authenticationManager(authenticationManager).accessTokenConverter(defaultAccessTokenConverter())
+//    	.userDetailsService(userDetailsService);
+		endpoints.authenticationManager(authenticationManager)
+				.accessTokenConverter(jwtAccessTokenConverter())
+				.userDetailsService(userDetailsService)
+				.tokenStore(tokenStore());
     }
 
 	@Bean
-	public TokenStore tokenStore(){
-		return new JwtTokenStore(defaultAccessTokenConverter());	
+	public JwtAccessTokenConverter jwtAccessTokenConverter() {
+		if (jwtAccessTokenConverter != null) {
+			return jwtAccessTokenConverter;
+		}
+
+		SecurityProperties.JwtProperties jwtProperties = securityProperties.getJwt();
+		KeyPair keyPair = keyPair(jwtProperties, keyStoreKeyFactory(jwtProperties));
+
+		jwtAccessTokenConverter = new JwtAccessTokenConverter();
+		jwtAccessTokenConverter.setKeyPair(keyPair);
+		return jwtAccessTokenConverter;
+	}
+
+	private KeyPair keyPair(SecurityProperties.JwtProperties jwtProperties, KeyStoreKeyFactory keyStoreKeyFactory) {
+		return keyStoreKeyFactory.getKeyPair(jwtProperties.getKeyPairAlias(), jwtProperties.getKeyPairPassword().toCharArray());
+	}
+
+	private KeyStoreKeyFactory keyStoreKeyFactory(SecurityProperties.JwtProperties jwtProperties) {
+		return new KeyStoreKeyFactory(jwtProperties.getKeyStore(), jwtProperties.getKeyStorePassword().toCharArray());
 	}
 
 	@Bean
-	public JwtAccessTokenConverter defaultAccessTokenConverter() {
-		JwtAccessTokenConverter converter = new JwtAccessTokenConverter();
-		converter.setSigningKey(jwtSecret);
-		return converter;
+	public TokenStore tokenStore() {
+		if (tokenStore == null) {
+			tokenStore = new JwtTokenStore(jwtAccessTokenConverter());
+		}
+		return tokenStore;
 	}
+
+//	@Bean
+//	public TokenStore tokenStore(){
+//		return new JwtTokenStore(defaultAccessTokenConverter());
+//	}
+
+//	@Bean
+//	public JwtAccessTokenConverter defaultAccessTokenConverter() {
+//		JwtAccessTokenConverter converter = new JwtAccessTokenConverter();
+//		converter.setSigningKey(jwtSecret);
+//		return converter;
+//	}
+
 }
