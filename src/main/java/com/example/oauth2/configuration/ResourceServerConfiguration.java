@@ -1,10 +1,12 @@
 package com.example.oauth2.configuration;
 
 import org.apache.commons.io.IOUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.jwt.crypto.sign.RsaVerifier;
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableResourceServer;
 import org.springframework.security.oauth2.config.annotation.web.configuration.ResourceServerConfigurerAdapter;
 import org.springframework.security.oauth2.config.annotation.web.configurers.ResourceServerSecurityConfigurer;
@@ -22,17 +24,19 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 public class ResourceServerConfiguration extends ResourceServerConfigurerAdapter {
     private static final String ROOT_PATTERN = "/**";
 
-    private final SecurityProperties securityProperties;
+    @Autowired
+    private SecurityProperties securityProperties;
 
+    @Autowired
     private TokenStore tokenStore;
-
-    public ResourceServerConfiguration(final SecurityProperties securityProperties) {
-        this.securityProperties = securityProperties;
-    }
+//
+//    public ResourceServerConfiguration(final SecurityProperties securityProperties) {
+//        this.securityProperties = securityProperties;
+//    }
 
     @Override
     public void configure(final ResourceServerSecurityConfigurer resources) {
-        resources.tokenStore(tokenStore());
+        resources.resourceId("resource-server-rest-api");
     }
 
     @Override
@@ -45,25 +49,14 @@ public class ResourceServerConfiguration extends ResourceServerConfigurerAdapter
                 .antMatchers(HttpMethod.DELETE, ROOT_PATTERN).access("#oauth2.hasScope('write')");
     }
 
-    @Bean
-    public DefaultTokenServices tokenServices(final TokenStore tokenStore) {
-        DefaultTokenServices tokenServices = new DefaultTokenServices();
-        tokenServices.setTokenStore(tokenStore);
-        return tokenServices;
-    }
 
-    @Bean
-    public TokenStore tokenStore() {
-        if (tokenStore == null) {
-            tokenStore = new JwtTokenStore(jwtAccessTokenConverter());
-        }
-        return tokenStore;
-    }
+
 
     @Bean
     public JwtAccessTokenConverter jwtAccessTokenConverter() {
         JwtAccessTokenConverter converter = new JwtAccessTokenConverter();
         converter.setVerifierKey(getPublicKeyAsString());
+        converter.setSigningKey(getPublicKeyAsString());
         return converter;
     }
 

@@ -54,6 +54,7 @@ public class OAuthConfiguration extends AuthorizationServerConfigurerAdapter {
 		this.securityProperties = securityProperties;
 	}
 
+
 	@Override
 	public void configure(final AuthorizationServerSecurityConfigurer oauthServer) throws Exception {
 		oauthServer.tokenKeyAccess("permitAll()").checkTokenAccess("isAuthenticated()");
@@ -74,10 +75,11 @@ public class OAuthConfiguration extends AuthorizationServerConfigurerAdapter {
     public void configure(final AuthorizationServerEndpointsConfigurer endpoints) throws Exception {
 //    	endpoints.tokenStore(tokenStore()).authenticationManager(authenticationManager).accessTokenConverter(defaultAccessTokenConverter())
 //    	.userDetailsService(userDetailsService);
-		endpoints.authenticationManager(authenticationManager)
+		endpoints
+				.tokenStore(tokenStore())
 				.accessTokenConverter(jwtAccessTokenConverter())
-				.userDetailsService(userDetailsService)
-				.tokenStore(tokenStore());
+				.authenticationManager(authenticationManager)
+				.userDetailsService(userDetailsService);
     }
 
 	@Bean
